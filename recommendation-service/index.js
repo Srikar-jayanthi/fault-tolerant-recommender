@@ -48,49 +48,38 @@ app.get('/recommendations/:userId', async (req, res) => {
         }
     );
 
-    // 2. Get Content (Movies)
-    const recommendations = await contentCB.call(
-        () => axios.get(`${contentUrl}/content`).then(r => r.data),
-        () => {
-            fallbackTriggered.push('content-service');
-            return null; // Handle in next step
-        }
-    );
-
-    // 3. Final Fallback Logic
+    // 2. Combined Fallback Check (Requirement 9)
+    // If BOTH are OPEN, we should fail-fast to trending
     if (userProfileCB.state === 'OPEN' && contentCB.state === 'OPEN') {
         try {
             const trendingResponse = await axios.get(`${trendingUrl}/trending`);
             return res.json({
                 message: "Our recommendation service is temporarily degraded. Here are some trending movies.",
                 trending: trendingResponse.data,
-                fallback_triggered_for: fallbackTriggered.join(', ')
+                fallback_triggered_for: "user-profile-service, content-service"
             });
         } catch (e) {
             return res.status(500).json({ error: "Major system failure" });
         }
     }
 
-    // If content failed but not user profile (or vice versa), return what we have
-    if (recommendations === null) {
-        // If content failed, we could try to filter trending movies by user preferences if we wanted to be fancy,
-        // but the requirement says recommendations should be based on preferences.
-        // For simplicity and adherence to requirement 8, if content is OPEN, we might show a partial response.
-        // Requirement 9 says full fallback only when BOTH are open.
-        // Requirement 8 says if user-profile is OPEN, use default preferences for recommendations.
+    // 3. Get Content (Movies) based on preferences
+    const queryParams = userProfile.preferences ? `?genres=${userProfile.preferences.join(',')}` : '';
+    const recommendations = await contentCB.call(
+        () => axios.get(`${contentUrl}/content${queryParams}`).then(r => r.data),
+        () => {
+            if (!fallbackTriggered.includes('content-service')) {
+                fallbackTriggered.push('content-service');
+            }
+            return [];
+        }
+    );
 
-        // Let's refine: if content is OPEN, we also trigger trending as fallback? 
-        // Requirement 9: Scenario "Both OPEN" -> trending.
-        // Requirement 8: Scenario "user-profile OPEN" -> default prefs + recommendations.
-
-        // So if ONLY content is OPEN:
-        return res.json({
-            userPreferences: userProfile,
-            recommendations: [], // Or trending? Requirement 9 says trending for BOTH. 
-            // Requirement 8 implies we still return `userPreferences` and `recommendations`.
-            fallback_triggered_for: fallbackTriggered.join(', ')
-        });
-    }
+    // 4. Handle Content Fallback ONLY if it was triggered
+    // Requirement 8 covers user-profile OPEN. 
+    // If BOTH were OPEN, we already returned.
+    // If ONLY user-profile was OPEN, we used default prefs and got recommendations (or empty).
+    // If ONLY content was OPEN, recommendations is [].
 
     res.json({
         userPreferences: userProfile,
