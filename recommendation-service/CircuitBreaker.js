@@ -1,4 +1,12 @@
+/**
+ * Custom Circuit Breaker implementation for managing service resilience.
+ * Implements the state machine for CLOSED, OPEN, and HALF_OPEN states.
+ */
 class CircuitBreaker {
+    /**
+     * @param {string} name - The name of the breaker (usually the service name).
+     * @param {Object} options - Configuration options for the breaker.
+     */
     constructor(name, options = {}) {
         this.name = name;
         this.timeout = options.timeout || 2000;
@@ -19,6 +27,12 @@ class CircuitBreaker {
         };
     }
 
+    /**
+     * Executes the given function within the protection of the circuit breaker.
+     * @param {Function} fn - The asynchronous function to execute.
+     * @param {Function} fallback - The fallback function to call if logic fails or circuit is OPEN.
+     * @returns {Promise<any>}
+     */
     async call(fn, fallback) {
         this.checkState();
 
@@ -37,6 +51,10 @@ class CircuitBreaker {
         }
     }
 
+    /**
+     * Wraps a function execution with a timeout promise.
+     * @private
+     */
     executeWithTimeout(fn) {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -53,6 +71,10 @@ class CircuitBreaker {
         });
     }
 
+    /**
+     * Handles internal logic for successful calls.
+     * @private
+     */
     onSuccess() {
         this.stats.successfulCalls++;
         this.callHistory.push(true);
@@ -69,6 +91,10 @@ class CircuitBreaker {
         }
     }
 
+    /**
+     * Handles internal logic for failed calls.
+     * @private
+     */
     onFailure(error) {
         this.stats.failedCalls++;
         this.callHistory.push(false);
@@ -90,12 +116,20 @@ class CircuitBreaker {
         }
     }
 
+    /**
+     * Transitions the breaker to the OPEN state.
+     * @private
+     */
     openCircuit() {
         console.log(`[Circuit Breaker: ${this.name}] Transitioning to OPEN`);
         this.state = 'OPEN';
         this.lastFailureTime = Date.now();
     }
 
+    /**
+     * Checks if the OPEN state duration has expired to move to HALF_OPEN.
+     * @private
+     */
     checkState() {
         if (this.state === 'OPEN' && (Date.now() - this.lastFailureTime) >= this.openDuration) {
             console.log(`[Circuit Breaker: ${this.name}] Transitioning to HALF_OPEN`);
@@ -104,6 +138,10 @@ class CircuitBreaker {
         }
     }
 
+    /**
+     * Resets the breaker to CLOSED state.
+     * @private
+     */
     reset() {
         this.state = 'CLOSED';
         this.failures = 0;
