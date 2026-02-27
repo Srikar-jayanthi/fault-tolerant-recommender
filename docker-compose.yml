@@ -4,7 +4,7 @@ services:
   recommendation-service:
     build: ./recommendation-service
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "8080:8080"
     environment:
       - API_PORT=8080
       - USER_PROFILE_URL=http://user-profile-service:8081
@@ -18,7 +18,7 @@ services:
       trending-service:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:8080/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); })" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,7 +30,7 @@ services:
     environment:
       - PORT=8081
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:8081/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); })" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,7 +42,7 @@ services:
     environment:
       - PORT=8082
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:8082/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); })" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -54,7 +54,7 @@ services:
     environment:
       - PORT=8083
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:8083/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); })" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8083/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
